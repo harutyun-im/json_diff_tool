@@ -321,7 +321,12 @@ function fileHandling(mockF, realF) {
     
                     let conJson = constructDiffJson(mock, deepDiffs);
                     let updatedData = showApplyDiffs(conJson, mock, real, mockF[j]);
-                    fs.writeFileSync(mockPath, (JSON.stringify(updatedData, null, 4)));
+
+                    // rewrite only mock data that has been modified
+                    if (updatedFiles.includes(mockF[j])) {
+                        fs.writeFileSync(mockPath, (JSON.stringify(updatedData, null, 4)));
+                    }
+
                 } else {
                     term.brightWhite(`\nSkipping `);
                     term.brightBlue(`${realF[i]}`);
