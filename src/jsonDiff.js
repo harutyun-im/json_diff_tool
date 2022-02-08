@@ -7,11 +7,13 @@ import fs from 'fs';
 
 var term = terminal.terminal ;
 let prompt = promptSync();
+
 let updatedFiles = [];
-// process.argv[3] = src/real_data/qa5/
-let realFiles = fs.readdirSync(process.argv[3]);
+
 // process.argv[2] = src/mock_data/qa5/
 let mockFiles = fs.readdirSync(process.argv[2]);
+// process.argv[3] = src/real_data/qa5/
+let realFiles = fs.readdirSync(process.argv[3]);
 
 
 // make action names from deep-diff user friendly
