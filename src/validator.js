@@ -9,6 +9,7 @@ var term = terminal.terminal ;
 let prompt = promptSync();
 
 let updatedFiles = [];
+let filesWithDiffs = [];
 
 // process.argv[2] = src/mock_data/qa5/
 let mockFiles = fs.readdirSync(process.argv[2]);
@@ -234,24 +235,29 @@ function createJsonPathWhenPropertyWasModified(el, h, bp) {
  * @returns mock data, same or updated depends on user input
  */
 function applyDiffs(mock, real, apiId, mockFile) {
-    let act = prompt(`For any action please choose the option: 
-    Y - Override mock data, N - Skip, no modifications: `);
-            while (!(['y', 'Y', 'n', 'N'].includes(act))) {
-                act = prompt(`Please choose from Y/N: `);
-            }  
-            switch (act) {
-                case 'y': case 'Y':
-                    mock.apis[apiId] = real.apis[apiId];
-                    /* in case of mock data updated, add it to the list of updated files
-                    if it has not been added yet */
-                    if (!updatedFiles.includes(mockFile)) {
-                        updatedFiles.push(mockFile);
-                    }
-                    break;
-                case 'n': case 'N':
-                    break;
+    term.magenta(`For any action please choose the option:\n`) 
+    console.log(`Y - Override mock data, N - Skip, no modifications`);
+
+    let act = prompt();
+
+    while (!(['y', 'Y', 'n', 'N'].includes(act))) {
+        act = prompt(`Please choose from Y/N: `);
+    }  
+
+    switch (act) {
+        case 'y': case 'Y':
+            mock.apis[apiId] = real.apis[apiId];
+            /* in case of mock data updated, add it to the list of updated files
+            if it has not been added yet */
+            if (!updatedFiles.includes(mockFile)) {
+                updatedFiles.push(mockFile);
             }
-            return mock;
+            break;
+        case 'n': case 'N':
+            break;
+    }
+
+    return mock;
 }
 
 
@@ -276,15 +282,31 @@ function showApplyDiffs(conJsonArr, mock, real, mockFile) {
                 let head2 = [["RESPONSE"], [conJsonArr[i].response.join('\n')]];
                 createTable(head2, 40);
             }
-            term.magenta('\nDo you want to see differences more detailed ? [Y|N]\n');
-            term.red("Type (q) for exit")
+            term.magenta('\nDo you want to see differences more detailed? [Y/N]\n');
+            term.red("Type (Q) for exit")
             term.bgDefaultColor( '\n') ;
+
             let answer = prompt();
-            if (['y', 'Y', 'yes', 'Yes', 'YES'].includes(answer)) {
-                showDiffs(conJsonArr[i].diff);
-            } else if (['q', 'Q'].includes(answer)) {
-                return mock;
+
+            // if (['y', 'Y'].includes(answer)) {
+            //     showDiffs(conJsonArr[i].diff);
+            // } else if (['q', 'Q'].includes(answer)) {
+            //     return mock;
+            // }
+
+            while (!(["y", "Y", "n", "N", "q", "Q"].includes(answer))) {
+                answer = prompt(`Please choose from Y/N/Q: `);
+            }  
+
+            switch (answer) {
+                case "Y": case "y":
+                    showDiffs(conJsonArr[i].diff);
+                    break;
+                case "Q": case "q":
+                    return mock;
+                    break;
             }
+
             /* prompts a user to apply differences, or save the old 
             values after showing either not showing differences */
             mock = applyDiffs(mock, real, i, mockFile);          
@@ -352,7 +374,7 @@ function printUpdatedFiles(upF) {
     } else {
         term.yellow(`\nChanges are applied for the following files:\n`);
         for (let i=0; i<upF.length; i++) {
-            term.brightBlue(`${upF[i]}\n`);
+            term.brightBlue.bold(`${upF[i]}\n`);
         }
     }
 
@@ -360,5 +382,88 @@ function printUpdatedFiles(upF) {
 }
 
 
-fileHandling(mockFiles, realFiles);
-printUpdatedFiles(updatedFiles);
+/**
+ * overwrite all data that have differences
+ * @param {*} mf mock data
+ * @param {*} rf real data
+ */
+function applyAllDiffs(mf, rf) {
+    for (let i=0; i<rf.length; i++) {
+        for (let j=0; j<mf.length; j++) {
+            if (rf[i] === mf[j]) {
+                let mockPath = path.join(process.argv[2], mf[j]);
+                let mock = JSON.parse(fs.readFileSync(mockPath));
+
+                let realPath = path.join(process.argv[3], rf[i]);
+                let real = JSON.parse(fs.readFileSync(realPath));              
+    
+                let deepDiffs = diff.diff(mock, real);
+
+                if (deepDiffs) {
+                    fs.writeFileSync(mockPath, (JSON.stringify(real, null, 4)));
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * show mock data that have differences and depending on user input
+ * overwrite all data, show and apply diffs or quit without changes
+ * @param {*} mf mock files
+ * @param {*} rf real files
+ */
+function previewFilesWithDiffs(mf, rf) {
+
+    for (let i=0; i<rf.length; i++) {
+        for (let j=0; j<mf.length; j++) {
+            if (rf[i] === mf[j]) {
+                let mockPath = path.join(process.argv[2], mf[j]);
+                let mock = JSON.parse(fs.readFileSync(mockPath));
+
+                let realPath = path.join(process.argv[3], rf[i]);
+                let real = JSON.parse(fs.readFileSync(realPath));              
+    
+                let deepDiffs = diff.diff(mock, real);
+
+                if (deepDiffs && !filesWithDiffs.includes(mf[j])) {
+                    filesWithDiffs.push(mf[j]);
+                }
+            }
+        }
+    }
+    
+    term.yellow(`\nThe following mock data have differences with real data:`)
+
+    for (let f=0; f<filesWithDiffs.length; f++) {
+        term.brightBlue.bold(`\n${filesWithDiffs[f]}`);
+    }
+
+    console.log(`\n\nPlease choose from the options:
+    Y - show differences
+    A - apply all differences
+    Q - quit
+    `);
+    let p = prompt();
+
+    while (!(["y", "Y", "a", "A", "q", "Q"].includes(p))) {
+        p = prompt(`Please choose from Y/A/Q: `);
+    }
+
+    switch(p) {
+        case "Y": case "y":
+            fileHandling(mf, rf);
+            printUpdatedFiles(updatedFiles);
+            break;
+        case "A": case "a":
+            applyAllDiffs(mf, rf);
+            break;
+        case "Q": case "q":
+            break;
+    }
+
+}
+
+
+previewFilesWithDiffs(mockFiles, realFiles);
