@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 
 
-var term = terminal.terminal ;
+let term = terminal.terminal ;
 let prompt = promptSync();
 
 let updatedFiles = [];
@@ -35,7 +35,7 @@ let exceptKeys = ["testRunId", "userAgent",  "user-agent", "cookie",
 /**
  * 
  * @param {*} pathArr array containing properties of the path
- * @returns path as in json
+ * @returns path with "." delimiter
  */
 let createJsonPath = (pathArr) => {
     let jsonPath =  pathArr.reduce(function (previousValue, currentValue) {
@@ -287,12 +287,6 @@ function showApplyDiffs(conJsonArr, mock, real, mockFile) {
             term.bgDefaultColor( '\n') ;
 
             let answer = prompt();
-
-            // if (['y', 'Y'].includes(answer)) {
-            //     showDiffs(conJsonArr[i].diff);
-            // } else if (['q', 'Q'].includes(answer)) {
-            //     return mock;
-            // }
 
             while (!(["y", "Y", "n", "N", "q", "Q"].includes(answer))) {
                 answer = prompt(`Please choose from Y/N/Q: `);
