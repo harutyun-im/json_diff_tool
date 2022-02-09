@@ -318,7 +318,7 @@ function fileHandling(mockF, realF) {
                 
                 if (deepDiffs) {
                     term.brightWhite(`\nDifferences for `);
-                    term.brightBlue.bold(`${realF[i]}`);
+                    term.brightBlue.bold(`${mockF[i]}`);
                     term.brightWhite(` MOCK DATA and real API requests\n`);
     
                     let conJson = constructDiffJson(mock, deepDiffs);
@@ -330,11 +330,11 @@ function fileHandling(mockF, realF) {
                     }
 
                 } else {
-                    console.log("\n\n\n")
+                    console.log("\n\n")
                     term.black.bgWhite(`Skipping `);
                     term.brightBlue.bold.bgWhite(`${realF[i]}`);
                     term.black.bgWhite(`  MOCK DATA changes, as the mock/real API requests are the same`);
-                    console.log("\n\n\n")
+                    console.log("\n\n")
                 }            
             }
         }
