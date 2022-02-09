@@ -52,12 +52,9 @@ let createJsonPath = (pathArr) => {
  * @returns new more readable array
  */
 function constructDiffJson(mock, diff) {
-
-    term.yellow(`\nWARNING: Please note, that the tool skips validation for the following key/values changes in stores API resuests: `);
-    term.red(`${exceptKeys}\n`);
-
     let mockApis = mock.apis;
     let conJsonArr = [];
+
     for (let i=0; i<mockApis.length; i++) {
         conJsonArr.push({"api": {
             "url": mockApis[i].request.url,
@@ -303,6 +300,11 @@ function showApplyDiffs(conJsonArr, mock, real, mockFile) {
  * @param {*} realF files from real API request
  */
 function fileHandling(mockF, realF) {
+
+    term.yellow.bold(`\nWARNING: `);
+    term.yellow(`PLEASE NOTE, THAT THE TOOL SKIPS VALIDATION FOR THE FOLLOWING KEY/VALUE CHANGES IN STORES API RESULTS: `);
+    term.red(`${exceptKeys}\n`);
+
     for (let i=0; i<realF.length; i++) {
         for (let j=0; j<mockF.length; j++) {
             if (realF[i] === mockF[j]) {
@@ -353,6 +355,7 @@ function printUpdatedFiles(upF) {
             term.brightBlue(`${upF[i]}\n`);
         }
     }
+
     console.log("\nSUGGESTION: Please rerun your exiting test cases affected by this changes to check the updates correctness with MOCK data usage.\n");
 }
 
