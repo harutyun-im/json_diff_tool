@@ -308,17 +308,17 @@ function fileHandling(mockF, realF) {
     for (let i=0; i<realF.length; i++) {
         for (let j=0; j<mockF.length; j++) {
             if (realF[i] === mockF[j]) {
-                let realPath = path.join(process.argv[3], realF[i]);
-                let real = JSON.parse(fs.readFileSync(realPath));
-    
                 let mockPath = path.join(process.argv[2], mockF[j]);
                 let mock = JSON.parse(fs.readFileSync(mockPath));
+
+                let realPath = path.join(process.argv[3], realF[i]);
+                let real = JSON.parse(fs.readFileSync(realPath));              
     
                 let deepDiffs = diff.diff(mock, real);
                 
                 if (deepDiffs) {
                     term.brightWhite(`\nDifferences for `);
-                    term.brightBlue.bold(`${mockF[i]}`);
+                    term.brightBlue.bold(`${mockF[j]}`);
                     term.brightWhite(` MOCK DATA and real API requests\n`);
     
                     let conJson = constructDiffJson(mock, deepDiffs);
@@ -332,7 +332,7 @@ function fileHandling(mockF, realF) {
                 } else {
                     console.log("\n\n")
                     term.black.bgWhite(`Skipping `);
-                    term.brightBlue.bold.bgWhite(`${realF[i]}`);
+                    term.brightBlue.bold.bgWhite(`${mockF[j]}`);
                     term.black.bgWhite(`  MOCK DATA changes, as the mock/real API requests are the same`);
                     console.log("\n\n")
                 }            
