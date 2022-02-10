@@ -49,41 +49,62 @@ let createJsonPath = (pathArr) => {
 /**
  * 
  * @param {*} mock data
+ * @param {*} real data
  * @param {*} diff is the result of diff.diff function on mock and real data
  * @returns new more readable array
  */
-function constructDiffJson(mock, diff) {
-    let mockApis = mock.apis;
+function constructDiffJson(mock, real, diff) {
+    let apis;
+    if(real.apis.length > mock.apis.length) {
+        apis = real.apis;
+    } else {
+        apis = mock.apis;
+    }
+
     let conJsonArr = [];
 
-    for (let i=0; i<mockApis.length; i++) {
-        conJsonArr.push({"api": {
-            "url": mockApis[i].request.url,
-            "method": mockApis[i].request.method
+    for (let i=0; i<apis.length; i++) {
+        conJsonArr.push({
+            "api": {
+                "url": apis[i].request.url,
+                "method": apis[i].request.method
             },
             "diff": [],
             "request": [],
             "response": []
         })
     }
+
     for (let i=0; i<diff.length; i++) {  
         // filter exception properties      
         if (! diff[i].path.some(e => exceptKeys.includes(e))) {
-            conJsonArr[diff[i].path[1]].diff.push({
-                "action": actionName[diff[i].kind],
-                "path": createJsonPath(diff[i].path),
-                "mock": diff[i].lhs,
-                "real": diff[i].rhs
-            });
-                // separate request and response paths
-                if (diff[i].path.includes("request")) {
-                    conJsonArr[diff[i].path[1]].request.push(
-                        createJsonPath(diff[i].path.slice(diff[i].path.indexOf('request')+1)));
-                }
-                if (diff[i].path.includes("response")) {
-                    conJsonArr[diff[i].path[1]].response.push(
-                        createJsonPath(diff[i].path.slice(diff[i].path.indexOf('response')+1)));
-                }
+
+            if (diff[i].kind == "A") {
+                conJsonArr[diff[i].index].diff.push({
+                    "action": actionName[diff[i].item.kind],
+                    "path": diff[i].path,
+                    "mock": diff[i].item.lhs,
+                    "real": diff[i].item.rhs
+                })
+            } else {
+                conJsonArr[diff[i].path[1]].diff.push({
+                    "action": actionName[diff[i].kind],
+                    "path": createJsonPath(diff[i].path),
+                    "mock": diff[i].lhs,
+                    "real": diff[i].rhs
+                });
+            }
+
+            // separate request and response paths
+            if (diff[i].path.includes("request")) {
+                conJsonArr[diff[i].path[1]].request.push(
+                    createJsonPath(diff[i].path.slice(diff[i].path.indexOf('request')+1)));
+            }
+
+            if (diff[i].path.includes("response")) {
+                conJsonArr[diff[i].path[1]].response.push(
+                    createJsonPath(diff[i].path.slice(diff[i].path.indexOf('response')+1)));
+            }
         }
     } 
     return conJsonArr;
@@ -124,7 +145,7 @@ function constructDiffJsonBody(diffBody) {
  * @param {*} headers of table
  * @param {*} w width
  */
-let createTable = function (headers, w) {
+let createTable = function(headers, w) {
     term.table(headers , 
         {
         hasBorder: true ,
@@ -144,7 +165,7 @@ let createTable = function (headers, w) {
 
 /**
  * creates tables for request, response and body
- * @param {*} arr diff[] property of array constructed from differences
+ * @param {*} arr is the diff[] property of array constructed from differences
  * containing "action", "path", "mock" and "real" properties
  */
 function showDiffs(arr) {
@@ -193,8 +214,10 @@ function showDiffs(arr) {
             head.push([
                 arr[j].action, 
                 arr[j].path, 
-                arr[j].mock, 
-                arr[j].real]);
+                JSON.stringify(arr[j].mock), 
+                JSON.stringify(arr[j].real)
+            ]);
+
         }   
     }
     createTable(head, 120);
@@ -273,18 +296,30 @@ function showApplyDiffs(conJsonArr, mock, real, mockFile) {
     for (let i=0; i < conJsonArr.length; i++) {
         if (conJsonArr[i].diff.length) {
             term.green(`\nURL:    ${conJsonArr[i].api.url}\nMETHOD: ${conJsonArr[i].api.method}\n\n`);
+
             // create tables for request and response if they are not empty 
             if (conJsonArr[i].request.length != 0) {
                 let head1 = [["REQUEST"], [conJsonArr[i].request.join('\n')]];
                 createTable(head1, 40);
             }
+
             if (conJsonArr[i].response.length != 0) {
                 let head2 = [["RESPONSE"], [conJsonArr[i].response.join('\n')]];
                 createTable(head2, 40);
             }
+            
+            /* when the path is "apis", that means that the request is new or deleted,
+            the diff array length is 1, as there can not be any other changes */
+            if (conJsonArr[i].diff[0].path == "apis") {
+                if (conJsonArr[i].diff[0].action == "Property was deleted") {
+                    term.brightWhite(`\nThe request is deleted.\n`);
+                } else if (conJsonArr[i].diff[0].action == "Property was newly added") {
+                    term.brightWhite(`\nThe request is new.\n`);
+                }
+            }
+            
             term.magenta('\nDo you want to see differences more detailed? [Y/N]\n');
-            term.red("Type (Q) for exit")
-            term.bgDefaultColor( '\n') ;
+            term.red("\nType (Q) for exit\n")
 
             let answer = prompt();
 
@@ -337,7 +372,7 @@ function fileHandling(mockF, realF) {
                     term.brightBlue.bold(`${mockF[j]}`);
                     term.brightWhite(` MOCK DATA and real API requests\n`);
     
-                    let conJson = constructDiffJson(mock, deepDiffs);
+                    let conJson = constructDiffJson(mock, real, deepDiffs);
                     let updatedData = showApplyDiffs(conJson, mock, real, mockF[j]);
 
                     // rewrite only mock data that has been modified
@@ -371,7 +406,6 @@ function printUpdatedFiles(upF) {
             term.brightBlue.bold(`${upF[i]}\n`);
         }
     }
-
     console.log("\nSUGGESTION: Please rerun your exiting test cases affected by this changes to check the updates correctness with MOCK data usage.\n");
 }
 
@@ -435,18 +469,18 @@ function previewFilesWithDiffs(mf, rf) {
     }
 
     console.log(`\n\nPlease choose from the options:
-    Y - show differences
+    S - show differences
     A - apply all differences
     Q - quit
     `);
     let p = prompt();
 
-    while (!(["y", "Y", "a", "A", "q", "Q"].includes(p))) {
-        p = prompt(`Please choose from Y/A/Q: `);
+    while (!(["s", "S", "a", "A", "q", "Q"].includes(p))) {
+        p = prompt(`Please choose from S/A/Q: `);
     }
 
     switch(p) {
-        case "Y": case "y":
+        case "S": case "s":
             fileHandling(mf, rf);
             printUpdatedFiles(updatedFiles);
             break;
