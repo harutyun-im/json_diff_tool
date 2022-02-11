@@ -25,9 +25,8 @@ let actionName = {
     "A": "Changes within an array" 
 };
 
-
-let exceptKeys = ["user-agent", "cookie", "fansight-tab", "sec-ch-ua",
-"sec-ch-ua-mobile", "sec-ch-ua-platform"];
+// do not show differences for the following keys:
+let exceptKeys = ["user-agent", "cookie", "fansight-tab", "sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"];
 
 
 /**
