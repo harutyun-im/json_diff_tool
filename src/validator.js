@@ -26,10 +26,8 @@ let actionName = {
 };
 
 
-// "fansight-tab"
-let exceptKeys = ["testRunId", "userAgent",  "user-agent", "cookie", 
- "date", "timestamp", "content-security-policy", "content-length",
-"session", "set-cookie", "id", "etag"];
+let exceptKeys = ["user-agent", "cookie", "fansight-tab", "sec-ch-ua",
+"sec-ch-ua-mobile", "sec-ch-ua-platform"];
 
 
 /**
@@ -119,15 +117,15 @@ function constructDiffJson(mock, real, diff) {
  */
 function constructDiffJsonBody(diffBody) {
     let diffArrBody = [];
-    for (let i=0; i<diffBody.length; i++) {        
-        diffArrBody.push({
-            "action": actionName[diffBody[i].kind],
-            "path": diffBody[i].path,
-            "mock": diffBody[i].lhs,
-            "real": diffBody[i].rhs
-        });
-            /* if action is changes within array and body has an item
-            call the function recursively for an item */
+    for (let i=0; i<diffBody.length; i++) {   
+            diffArrBody.push({
+                "action": actionName[diffBody[i].kind],
+                "path": diffBody[i].path,
+                "mock": diffBody[i].lhs,
+                "real": diffBody[i].rhs
+            });
+        /* if action is changes within array and body has an item
+        call the function recursively for an item */
         if ("item" in diffBody[i]) {
             let diffBodyItemArr = [];
             diffBodyItemArr.push(diffBody[i].item);
@@ -194,21 +192,25 @@ function showDiffs(arr) {
                 // find differences within body
                 let differencesBody = diff.diff(JSON.parse(arr[j].mock), JSON.parse(arr[j].real));
                 let diffBody = constructDiffJsonBody(differencesBody);
-                //  if action type is "A": "Changes within an array" create a table from items
-                for (let i=0; i<diffBody.length; i++) {
-                    if (diffBody[i].action === "Changes within an array") { 
-                        /* need new index z, because if action is "Changes within an array"
-                        diffs are shown in the next element of an diffBody array
-                        and need to step over one element ++i */                        
-                        let z = ++i;                       
-                        // iterate in item
-                        for (let k=0; k<diffBody[z].item.length; k++) {
-                            createJsonPathWhenPropertyWasModified(diffBody[z].item[k], head, bodyPath);
-                        }
-                    } else {
-                        createJsonPathWhenPropertyWasModified(diffBody[i], head, bodyPath);
+
+                if (diffBody.length) {
+                    for (let i=0; i<diffBody.length; i++) {
+                        //  if action type is "A": "Changes within an array" create a table from items
+                        if (diffBody[i].action === "Changes within an array") { 
+                            /* need new index z, because if action is "Changes within an array"
+                            diffs are shown in the next element of an diffBody array
+                            and need to step over one element ++i */                        
+                            let z = ++i;                       
+                            // iterate in item
+                            for (let k=0; k<diffBody[z].item.length; k++) {
+                                createJsonPathWhenPropertyWasModified(diffBody[z].item[k], head, bodyPath);
+                            }
+                        } else {
+                            createJsonPathWhenPropertyWasModified(diffBody[i], head, bodyPath);
+                        } 
                     } 
-                } 
+                }
+
             }
         } else {
             head.push([
@@ -217,10 +219,12 @@ function showDiffs(arr) {
                 JSON.stringify(arr[j].mock), 
                 JSON.stringify(arr[j].real)
             ]);
-
         }   
     }
-    createTable(head, 120);
+
+    if (head.length) {
+        createTable(head, 120);
+    }
 }
 
 
@@ -298,12 +302,12 @@ function showApplyDiffs(conJsonArr, mock, real, mockFile) {
             term.green(`\nURL:    ${conJsonArr[i].api.url}\nMETHOD: ${conJsonArr[i].api.method}\n\n`);
 
             // create tables for request and response if they are not empty 
-            if (conJsonArr[i].request.length != 0) {
+            if (conJsonArr[i].request.length) {
                 let head1 = [["REQUEST"], [conJsonArr[i].request.join('\n')]];
                 createTable(head1, 40);
             }
 
-            if (conJsonArr[i].response.length != 0) {
+            if (conJsonArr[i].response.length) {
                 let head2 = [["RESPONSE"], [conJsonArr[i].response.join('\n')]];
                 createTable(head2, 40);
             }
@@ -353,7 +357,7 @@ function showApplyDiffs(conJsonArr, mock, real, mockFile) {
 function fileHandling(mockF, realF) {
 
     term.yellow.bold(`\nWARNING: `);
-    term.yellow(`PLEASE NOTE, THAT THE TOOL SKIPS VALIDATION FOR THE FOLLOWING KEY/VALUE CHANGES IN STORES API RESULTS: `);
+    term.yellow(`PLEASE NOTE, THAT THE TOOL SKIPS VALIDATION FOR THE FOLLOWING KEY/VALUE CHANGES IN STORED API RESULTS: `);
     term.red(`${exceptKeys}\n`);
 
     for (let i=0; i<realF.length; i++) {
@@ -374,6 +378,9 @@ function fileHandling(mockF, realF) {
     
                     let conJson = constructDiffJson(mock, real, deepDiffs);
                     let updatedData = showApplyDiffs(conJson, mock, real, mockF[j]);
+
+                    // delete null values, when reuest is deleted
+                    updatedData.apis = updatedData.apis.filter(api => api != null);
 
                     // rewrite only mock data that has been modified
                     if (updatedFiles.includes(mockF[j])) {
@@ -398,13 +405,13 @@ function fileHandling(mockF, realF) {
  * @param {*} upF array of updated files
  */
 function printUpdatedFiles(upF) {
-    if (upF.length == 0) {
-        term.yellow(`\nNo mock data has been updated.\n`);
-    } else {
+    if (upF.length) {
         term.yellow(`\nChanges are applied for the following files:\n`);
         for (let i=0; i<upF.length; i++) {
             term.brightBlue.bold(`${upF[i]}\n`);
         }
+    } else {
+        term.yellow(`\nNo mock data has been updated.\n`);
     }
     console.log("\nSUGGESTION: Please rerun your exiting test cases affected by this changes to check the updates correctness with MOCK data usage.\n");
 }
