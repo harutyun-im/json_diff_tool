@@ -10,11 +10,30 @@ let prompt = promptSync();
 
 let updatedFiles = [];
 let filesWithDiffs = [];
+let missInMock = [];
 
-// process.argv[2] = src/mock_data/qa5/
-let mockFiles = fs.readdirSync(process.argv[2]);
-// process.argv[3] = src/real_data/qa5/
-let realFiles = fs.readdirSync(process.argv[3]);
+// process.argv[2] = src/mock_data/{env}/
+let mockDir = process.argv[2];
+// process.argv[3] = src/real_data/{env}/
+let realDir = process.argv[3];
+
+let mockFiles = fs.readdirSync(mockDir);
+let realFiles = fs.readdirSync(realDir);
+
+
+/**
+ * add in list all files missing in mock data
+ * @param {*} file files in real data
+ */
+function checkFileInMock(file) {
+    if (!mockFiles.includes(file)) {
+        missInMock.push(file)
+    }
+}
+
+
+// check for each real data if missing in mock
+realFiles.forEach(checkFileInMock);
 
 
 // make action names from deep-diff user friendly
@@ -362,10 +381,10 @@ function fileHandling(mockF, realF) {
     for (let i=0; i<realF.length; i++) {
         for (let j=0; j<mockF.length; j++) {
             if (realF[i] === mockF[j]) {
-                let mockPath = path.join(process.argv[2], mockF[j]);
+                let mockPath = path.join(mockDir, mockF[j]);
                 let mock = JSON.parse(fs.readFileSync(mockPath));
 
-                let realPath = path.join(process.argv[3], realF[i]);
+                let realPath = path.join(realDir, realF[i]);
                 let real = JSON.parse(fs.readFileSync(realPath));              
     
                 let deepDiffs = diff.diff(mock, real);
@@ -425,10 +444,10 @@ function applyAllDiffs(mf, rf) {
     for (let i=0; i<rf.length; i++) {
         for (let j=0; j<mf.length; j++) {
             if (rf[i] === mf[j]) {
-                let mockPath = path.join(process.argv[2], mf[j]);
+                let mockPath = path.join(mockDir, mf[j]);
                 let mock = JSON.parse(fs.readFileSync(mockPath));
 
-                let realPath = path.join(process.argv[3], rf[i]);
+                let realPath = path.join(realDir, rf[i]);
                 let real = JSON.parse(fs.readFileSync(realPath));              
     
                 let deepDiffs = diff.diff(mock, real);
@@ -443,6 +462,25 @@ function applyAllDiffs(mf, rf) {
 
 
 /**
+ * creates files in mock if exists in real files and missing in mock
+ * @param {*} missFiles list of files in real files missing in mock files
+ */
+ function createMissingFiles(missFiles) {
+    let realPath, mockPath, realData;
+    for (let i=0; i<missFiles.length; i++) {
+        realPath = path.join(realDir, missFiles[i]);
+        mockPath = path.join(mockDir, missFiles[i]);
+        try {
+            realData = fs.readFileSync(realPath);
+            fs.writeFileSync(mockPath, realData, null, 4);
+        } catch (err) {
+            console.log(err.message);
+        }        
+    }
+}
+
+
+/**
  * show mock data that have differences and depending on user input
  * overwrite all data, show and apply diffs or quit without changes
  * @param {*} mf mock files
@@ -450,13 +488,20 @@ function applyAllDiffs(mf, rf) {
  */
 function previewFilesWithDiffs(mf, rf) {
 
+    if (missInMock.length) {
+        term.yellow(`\nThe following data is missing from mock files:`)
+        for (let f=0; f<missInMock.length; f++) {
+            term.brightBlue.bold(`\n${missInMock[f]}`);
+        }
+    }   
+
     for (let i=0; i<rf.length; i++) {
         for (let j=0; j<mf.length; j++) {
             if (rf[i] === mf[j]) {
-                let mockPath = path.join(process.argv[2], mf[j]);
+                let mockPath = path.join(mockDir, mf[j]);
                 let mock = JSON.parse(fs.readFileSync(mockPath));
 
-                let realPath = path.join(process.argv[3], rf[i]);
+                let realPath = path.join(realDir, rf[i]);
                 let real = JSON.parse(fs.readFileSync(realPath));              
     
                 let deepDiffs = diff.diff(mock, real);
@@ -468,17 +513,26 @@ function previewFilesWithDiffs(mf, rf) {
         }
     }
     
-    term.yellow(`\nThe following mock data have differences with real data:`)
+    term.yellow(`\n\nThe following mock data have differences with real data:`)
 
     for (let f=0; f<filesWithDiffs.length; f++) {
         term.brightBlue.bold(`\n${filesWithDiffs[f]}`);
     }
 
-    console.log(`\n\nPlease choose from the options:
+    if (missInMock.length) {
+        console.log(`\n\nPlease choose from the options:
+    S - show differences
+    A - apply all differences and create missing data
+    Q - quit
+    `);
+    } else {
+        console.log(`\n\nPlease choose from the options:
     S - show differences
     A - apply all differences
     Q - quit
     `);
+    }
+
     let p = prompt();
 
     while (!(["s", "S", "a", "A", "q", "Q"].includes(p))) {
@@ -492,6 +546,9 @@ function previewFilesWithDiffs(mf, rf) {
             break;
         case "A": case "a":
             applyAllDiffs(mf, rf);
+            if (missInMock.length) {
+                createMissingFiles(missInMock);
+            }
             break;
         case "Q": case "q":
             break;
