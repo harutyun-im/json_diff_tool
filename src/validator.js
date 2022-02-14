@@ -36,6 +36,36 @@ function checkFileInMock(file) {
 realFiles.forEach(checkFileInMock);
 
 
+/**
+ * 
+ * @param {*} mf 
+ * @param {*} rf 
+ */
+ function checkFilesWithDiffs(mf, rf) {
+    for (let i=0; i<rf.length; i++) {
+        for (let j=0; j<mf.length; j++) {
+            if (rf[i] === mf[j]) {
+                let mockPath = path.join(mockDir, mf[j]);
+                let mock = JSON.parse(fs.readFileSync(mockPath));
+
+                let realPath = path.join(realDir, rf[i]);
+                let real = JSON.parse(fs.readFileSync(realPath));              
+    
+                let deepDiffs = diff.diff(mock, real);
+
+                if (deepDiffs && !filesWithDiffs.includes(mf[j])) {
+                    filesWithDiffs.push(mf[j]);
+                }
+            }
+        }
+    }
+}
+
+
+// added files with diffs in filesWithDiffs array
+checkFilesWithDiffs(mockFiles, realFiles);
+
+
 // make action names from deep-diff user friendly
 let actionName = {
     "E": "Property was modified",    
@@ -488,35 +518,23 @@ function applyAllDiffs(mf, rf) {
  */
 function previewFilesWithDiffs(mf, rf) {
 
+    if (!missInMock.length && !filesWithDiffs.length) {
+        term.yellow(`\nThere are no missing data or differences for mock\n\n`);
+        return;
+    }
+
     if (missInMock.length) {
-        term.yellow(`\nThe following data is missing from mock files:`)
+        term.yellow(`\nThe following data is missing from mock files:`);
         for (let f=0; f<missInMock.length; f++) {
             term.brightBlue.bold(`\n${missInMock[f]}`);
         }
     }   
 
-    for (let i=0; i<rf.length; i++) {
-        for (let j=0; j<mf.length; j++) {
-            if (rf[i] === mf[j]) {
-                let mockPath = path.join(mockDir, mf[j]);
-                let mock = JSON.parse(fs.readFileSync(mockPath));
-
-                let realPath = path.join(realDir, rf[i]);
-                let real = JSON.parse(fs.readFileSync(realPath));              
-    
-                let deepDiffs = diff.diff(mock, real);
-
-                if (deepDiffs && !filesWithDiffs.includes(mf[j])) {
-                    filesWithDiffs.push(mf[j]);
-                }
-            }
+    if (filesWithDiffs.length) {
+        term.yellow(`\n\nThe following mock data have differences with real data:`)
+        for (let f=0; f<filesWithDiffs.length; f++) {
+            term.brightBlue.bold(`\n${filesWithDiffs[f]}`);
         }
-    }
-    
-    term.yellow(`\n\nThe following mock data have differences with real data:`)
-
-    for (let f=0; f<filesWithDiffs.length; f++) {
-        term.brightBlue.bold(`\n${filesWithDiffs[f]}`);
     }
 
     if (missInMock.length) {
