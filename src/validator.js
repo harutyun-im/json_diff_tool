@@ -12,13 +12,43 @@ let updatedFiles = [];
 let filesWithDiffs = [];
 let missInMock = [];
 
-// process.argv[2] = src/mock_data/{env}/
-let mockDir = process.argv[2];
-// process.argv[3] = src/real_data/{env}/
-let realDir = process.argv[3];
+let mockDir, realDir, mockFiles, realFiles;
 
-let mockFiles = fs.readdirSync(mockDir);
-let realFiles = fs.readdirSync(realDir);
+let args = process.argv;
+
+
+/**
+ * 
+ * @param {*} ar is process.argv
+ */
+function argParse(ar) {
+    for (let i=0; i<ar.length; i++) {
+        
+        if (["-h", "--help"].includes(ar[2])) {
+            console.log("Please use \"node src/validator.js -mock {path to mock data folder} -real {path to real data folder}\" command.");
+            process.exit();
+        } 
+        if (ar[i] == "-mock") {
+            mockDir = ar[i+1];
+        }
+        if (ar[i] == "-real") {
+            realDir = ar[i+1];
+        }
+        
+    }
+}
+
+
+argParse(args);
+
+
+try {
+    mockFiles = fs.readdirSync(mockDir);
+    realFiles = fs.readdirSync(realDir);
+} catch {
+    console.log("Please use \"-h\" or \"--help\" flag to see how to run tool.");
+    process.exit();
+}
 
 
 /**
