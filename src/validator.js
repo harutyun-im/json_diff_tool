@@ -23,13 +23,14 @@ let args = process.argv;
  */
 function argParse(ar) {
     for (let i=0; i<ar.length; i++) {
-        
+
         if (["-h", "--help"].includes(ar[2])) {
             console.log(`usage: node ... [option] ... [option] ...
 
 Options and arguments:
 -mock   : path to folder containing mock data
 -real   : path to folder containing real data`);
+
             process.exit();
         } 
         if (ar[i] == "-mock") {
@@ -88,6 +89,7 @@ let actionName = {
     "A": "Changes within an array" 
 };
 
+
 // do not show differences for the following keys:
 let exceptKeys = ["user-agent", "cookie", "fansight-tab", "sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"];
 
@@ -108,6 +110,76 @@ let createJsonPath = (pathArr) => {
 
 /**
  * 
+ * @param {*} arr apis array of mock or real data
+ * @param {*} conArr 
+ */
+function initConstructedArray(arr, conArr) {
+    for (let i=0; i<arr.length; i++) {
+        conArr.push({
+            "api": {
+                "url": arr[i].request.url,
+                "method": arr[i].request.method
+            },
+            "diff": [],
+            "request": [],
+            "response": []
+        })
+    }
+}
+
+
+/**
+ * 
+ * @param {*} dArr array of differences
+ * @param {*} cArr constructed array
+ */
+function createReqResPath(dArr, cArr) {
+    if (dArr.path.includes("request")) {
+        cArr[dArr.path[1]].request.push(
+            createJsonPath(dArr.path.slice(dArr.path.indexOf('request')+1)));
+    }
+
+    if (dArr.path.includes("response")) {
+        cArr[dArr.path[1]].response.push(
+            createJsonPath(dArr.path.slice(dArr.path.indexOf('response')+1)));
+    }
+}
+
+
+/**
+ * 
+ * @param {*} diffArr array result of deep-diff on mock and real data
+ * @param {*} conArr 
+ */
+function constructArray(diffArr, conArr) {
+    for (let i=0; i<diffArr.length; i++) {  
+        // filter exception properties      
+        if (! diffArr[i].path.some(e => exceptKeys.includes(e))) {
+
+            if (diffArr[i].kind == "A") {
+                conArr[diffArr[i].index].diff.push({
+                    "action": actionName[diffArr[i].item.kind],
+                    "path": diffArr[i].path,
+                    "mock": diffArr[i].item.lhs,
+                    "real": diffArr[i].item.rhs
+                })
+            } else {
+                conArr[diffArr[i].path[1]].diff.push({
+                    "action": actionName[diffArr[i].kind],
+                    "path": createJsonPath(diffArr[i].path),
+                    "mock": diffArr[i].lhs,
+                    "real": diffArr[i].rhs
+                });
+            }
+
+            createReqResPath(diffArr[i], conArr);          
+        }
+    } 
+}
+
+
+/**
+ * 
  * @param {*} mock data
  * @param {*} real data
  * @param {*} diff is the result of diff.diff function on mock and real data
@@ -122,51 +194,9 @@ function constructDiffJson(mock, real, diff) {
     }
 
     let conJsonArr = [];
-
-    for (let i=0; i<apis.length; i++) {
-        conJsonArr.push({
-            "api": {
-                "url": apis[i].request.url,
-                "method": apis[i].request.method
-            },
-            "diff": [],
-            "request": [],
-            "response": []
-        })
-    }
-
-    for (let i=0; i<diff.length; i++) {  
-        // filter exception properties      
-        if (! diff[i].path.some(e => exceptKeys.includes(e))) {
-
-            if (diff[i].kind == "A") {
-                conJsonArr[diff[i].index].diff.push({
-                    "action": actionName[diff[i].item.kind],
-                    "path": diff[i].path,
-                    "mock": diff[i].item.lhs,
-                    "real": diff[i].item.rhs
-                })
-            } else {
-                conJsonArr[diff[i].path[1]].diff.push({
-                    "action": actionName[diff[i].kind],
-                    "path": createJsonPath(diff[i].path),
-                    "mock": diff[i].lhs,
-                    "real": diff[i].rhs
-                });
-            }
-
-            // separate request and response paths
-            if (diff[i].path.includes("request")) {
-                conJsonArr[diff[i].path[1]].request.push(
-                    createJsonPath(diff[i].path.slice(diff[i].path.indexOf('request')+1)));
-            }
-
-            if (diff[i].path.includes("response")) {
-                conJsonArr[diff[i].path[1]].response.push(
-                    createJsonPath(diff[i].path.slice(diff[i].path.indexOf('response')+1)));
-            }
-        }
-    } 
+    initConstructedArray(apis, conJsonArr);
+    constructArray(diff, conJsonArr);
+    
     return conJsonArr;
 }
 
