@@ -525,6 +525,43 @@ function applyAllDiffs(mf, rf) {
 
 
 /**
+ * 
+ * @returns 
+ */
+function previewMissingFiles() {
+    if (!missInMock.length) {
+        term.yellow(`\nThere is no missing mock data.\n`);
+        return;
+    }
+
+    term.yellow(`\nThe following data is missing from mock files:`);
+    for (let f=0; f<missInMock.length; f++) {
+        term.brightBlue.bold(`\n${missInMock[f]}`);
+    }
+      
+    console.log(`\n\nCreate missing data?:
+    Y - Yes
+    N - No
+    `);
+
+    let p = prompt();
+
+    while (!(["y", "Y", "n", "N"].includes(p))) {
+        p = prompt(`Please choose from Y/N: `);
+    }
+
+    switch(p) {
+        case "y": case "Y":
+            createMissingFiles(missInMock);
+            break;
+        case "n": case "N":
+            break;
+    }
+
+}
+
+
+/**
  * show mock data that have differences and depending on user input
  * overwrite all data, show and apply diffs or quit without changes
  * @param {*} mf mock files
@@ -532,39 +569,24 @@ function applyAllDiffs(mf, rf) {
  */
 function previewFilesWithDiffs(mf, rf) {
 
-    if (!missInMock.length && !filesWithDiffs.length) {
-        term.yellow(`\nThere are no missing data or differences for mock\n\n`);
+    if (!filesWithDiffs.length) {
+        term.yellow(`\nThere are no differences for mock data.\n\n`);
         return;
     }
 
-    if (missInMock.length) {
-        term.yellow(`\nThe following data is missing from mock files:`);
-        for (let f=0; f<missInMock.length; f++) {
-            term.brightBlue.bold(`\n${missInMock[f]}`);
-        }
-    }   
-
     if (filesWithDiffs.length) {
-        term.yellow(`\n\nThe following mock data have differences with real data:`)
+        term.yellow(`\nThe following mock data have differences with real data:`)
         for (let f=0; f<filesWithDiffs.length; f++) {
             term.brightBlue.bold(`\n${filesWithDiffs[f]}`);
         }
     }
 
-    if (missInMock.length) {
-        console.log(`\n\nPlease choose from the options:
-    S - show differences
-    A - apply all differences and create missing data
-    Q - quit
-    `);
-    } else {
-        console.log(`\n\nPlease choose from the options:
+    console.log(`\n\nPlease choose from the options:
     S - show differences
     A - apply all differences
     Q - quit
     `);
-    }
-
+    
     let p = prompt();
 
     while (!(["s", "S", "a", "A", "q", "Q"].includes(p))) {
@@ -578,9 +600,6 @@ function previewFilesWithDiffs(mf, rf) {
             break;
         case "A": case "a":
             applyAllDiffs(mf, rf);
-            if (missInMock.length) {
-                createMissingFiles(missInMock);
-            }
             break;
         case "Q": case "q":
             break;
@@ -611,4 +630,5 @@ realFiles.forEach(checkFileInMock);
 checkFilesWithDiffs(mockFiles, realFiles);
 
 
+previewMissingFiles();
 previewFilesWithDiffs(mockFiles, realFiles);
