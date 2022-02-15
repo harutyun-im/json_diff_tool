@@ -25,7 +25,11 @@ function argParse(ar) {
     for (let i=0; i<ar.length; i++) {
         
         if (["-h", "--help"].includes(ar[2])) {
-            console.log("Please use \"node src/validator.js -mock {path to mock data folder} -real {path to real data folder}\" command.");
+            console.log(`usage: node ... [option] ... [option] ...
+
+Options and arguments:
+-mock   : path to folder containing mock data
+-real   : path to folder containing real data`);
             process.exit();
         } 
         if (ar[i] == "-mock") {
@@ -39,18 +43,6 @@ function argParse(ar) {
 }
 
 
-argParse(args);
-
-
-try {
-    mockFiles = fs.readdirSync(mockDir);
-    realFiles = fs.readdirSync(realDir);
-} catch {
-    console.log("Please use \"-h\" or \"--help\" flag to see how to run tool.");
-    process.exit();
-}
-
-
 /**
  * add in list all files missing in mock data
  * @param {*} file files in real data
@@ -60,10 +52,6 @@ function checkFileInMock(file) {
         missInMock.push(file)
     }
 }
-
-
-// check for each real data if missing in mock
-realFiles.forEach(checkFileInMock);
 
 
 /**
@@ -90,10 +78,6 @@ realFiles.forEach(checkFileInMock);
         }
     }
 }
-
-
-// added files with diffs in filesWithDiffs array
-checkFilesWithDiffs(mockFiles, realFiles);
 
 
 // make action names from deep-diff user friendly
@@ -262,8 +246,8 @@ function showDiffs(arr) {
                     [
                         arr[j].action,
                         arr[j].path,
-                        " --- ",
-                        " --- "
+                        " N/A ",
+                        " N/A "
                     ]
                 )
             } else {
@@ -603,6 +587,28 @@ function previewFilesWithDiffs(mf, rf) {
     }
 
 }
+
+
+// args = process.argv
+argParse(args);
+
+
+try {
+    mockFiles = fs.readdirSync(mockDir);
+    realFiles = fs.readdirSync(realDir);
+} catch (err) {
+    console.log(`One of the provided paths is invalid, please check their existence.
+path: ${err.path}`);
+    process.exit();
+}
+
+
+// check for each real data if missing in mock
+realFiles.forEach(checkFileInMock);
+
+
+// added files with diffs in filesWithDiffs array
+checkFilesWithDiffs(mockFiles, realFiles);
 
 
 previewFilesWithDiffs(mockFiles, realFiles);
