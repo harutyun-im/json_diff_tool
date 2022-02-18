@@ -4,6 +4,10 @@ import terminal from 'terminal-kit';
 import path from 'path';
 import fs from 'fs';
 import * as vConst from '../constants/validator_constants.js'
+import {
+    createTable, printUpdatedFiles,
+    createJsonPath, createReqResPath, createJsonPathWhenPropertyWasModified
+} from './terminal_helper.js'
 
 
 let term = terminal.terminal;
@@ -64,6 +68,21 @@ Options and arguments:
 
 
 /**
+ * raead files from mock and real data folders
+ */
+ function readFilesFromDirs() {
+    try {
+        mockFiles = fs.readdirSync(mockDir);
+        realFiles = fs.readdirSync(realDir);
+    } catch (err) {
+        console.log(`One of the provided paths is invalid, please check their existence.
+    path: ${err.path}`);
+        process.exit();
+    }
+}
+
+
+/**
  * add in list all files missing in mock data
  * @param {*} file files in real data
  */
@@ -113,20 +132,6 @@ function checkFileInMock(file) {
 
 /**
  * 
- * @param {*} pathArr array containing properties of the path
- * @returns path with "." delimiter
- */
-let createJsonPath = (pathArr) => {
-    let jsonPath =  pathArr.reduce(function (previousValue, currentValue) {
-        return (typeof(currentValue) == 'number') ? previousValue.slice(0,-1).concat(
-            `[${currentValue}].`) : previousValue.concat(`${currentValue}.`);;
-    } , '');
-    return jsonPath.slice(0, -1);
-}
-
-
-/**
- * 
  * @param {*} arr apis array of mock or real data
  * @param {*} conArr 
  */
@@ -141,24 +146,6 @@ function initConstructedArray(arr, conArr) {
             "request": [],
             "response": []
         })
-    }
-}
-
-
-/**
- * 
- * @param {*} dArr array of differences
- * @param {*} cArr constructed array
- */
-function createReqResPath(dArr, cArr) {
-    if (dArr.path.includes("request")) {
-        cArr[dArr.path[1]].request.push(
-            createJsonPath(dArr.path.slice(dArr.path.indexOf('request')+1)));
-    }
-
-    if (dArr.path.includes("response")) {
-        cArr[dArr.path[1]].response.push(
-            createJsonPath(dArr.path.slice(dArr.path.indexOf('response')+1)));
     }
 }
 
@@ -248,29 +235,6 @@ function constructDiffJsonBody(diffBody) {
 
 
 /**
- * creates a table by selected properties
- * @param {*} headers of table
- * @param {*} w width
- */
-let createTable = function(headers, w) {
-    term.table(headers , 
-        {
-        hasBorder: true ,
-        contentHasMarkup: true ,
-        borderChars: 'lightRounded' ,
-        borderAttr: { color: 'blue' } ,
-        textAttr: { bgColor: 'default' } ,
-        // firstCellTextAttr: { bgColor: 'blue' } ,
-        firstRowTextAttr: { bgColor: 'grey' } ,
-        // firstColumnTextAttr: { bgColor: 'red' } ,
-        width: w ,
-        fit: true   // Activate all expand/shrink + wordWrap
-    }
-    ) ;
-}
-
-
-/**
  * creates tables for request, response and body
  * @param {*} arr is the diff[] property of array constructed from differences
  * containing "action", "path", "mock" and "real" properties
@@ -333,31 +297,6 @@ function showDiffs(arr) {
 
     if (head.length) {
         createTable(head, 120);
-    }
-}
-
-
-/**
- * uses createJsonPath function when "Property was modified"
- * @param {*} el nth element of body diff
- * @param {*} h head for creating a table by terminal-kit
- * @param {*} bp path to differences in body
- */
-function createJsonPathWhenPropertyWasModified(el, h, bp) {
-    if (el.action === vConst.MODIFIED) {
-        h.push([
-            el.action,
-            bp + "." + createJsonPath(el.path), 
-            JSON.stringify(el.mock), 
-            JSON.stringify(el.real)
-        ])
-    } else {
-        h.push([
-            el.action,
-            bp, 
-            JSON.stringify(el.mock), 
-            JSON.stringify(el.real)
-        ])
     }
 }
 
@@ -510,23 +449,6 @@ function fileHandling(mockF, realF) {
 
 
 /**
- * 
- * @param {*} upF array of updated files
- */
-function printUpdatedFiles(upF) {
-    if (upF.length) {
-        term.yellow(`\nChanges are applied for the following files:\n`);
-        for (let i=0; i<upF.length; i++) {
-            term.brightBlue.bold(`${upF[i]}\n`);
-        }
-    } else {
-        term.yellow(`\nNo mock data has been updated.\n`);
-    }
-    console.log("\nSUGGESTION: Please rerun your exiting test cases affected by this changes to check the updates correctness with MOCK data usage.\n");
-}
-
-
-/**
  * overwrite all data that have differences
  * @param {*} mf mock data
  * @param {*} rf real data
@@ -652,21 +574,6 @@ function previewFilesWithDiffs(mf, rf) {
             break;
     }
 
-}
-
-
-/**
- * raead files from mock and real data folders
- */
-function readFilesFromDirs() {
-    try {
-        mockFiles = fs.readdirSync(mockDir);
-        realFiles = fs.readdirSync(realDir);
-    } catch (err) {
-        console.log(`One of the provided paths is invalid, please check their existence.
-    path: ${err.path}`);
-        process.exit();
-    }
 }
 
 
