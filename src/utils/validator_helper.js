@@ -3,18 +3,37 @@ import promptSync from 'prompt-sync';
 import terminal from 'terminal-kit';
 import path from 'path';
 import fs from 'fs';
+import * as vConst from '../constants/validator_constants.js'
 
 
-let term = terminal.terminal ;
+let term = terminal.terminal;
 let prompt = promptSync();
 
 let updatedFiles = [];
 let filesWithDiffs = [];
 let missInMock = [];
 
-let mockDir, realDir, mockFiles, realFiles;
+let mockDir, realDir;
 
-let args = process.argv;
+
+export let mockFiles, realFiles;
+export let args = process.argv;
+
+
+// make action names from deep-diff user friendly
+let actionName = {
+    "E": vConst.MODIFIED,    
+    "N": vConst.ADDED,
+    "D": vConst.DELETED,
+    "A": vConst.ARRAY_CHANGED 
+};
+
+
+// do not show differences for the following keys:
+let exceptKeys = [
+    vConst.USER_AGENT, vConst.COOKIE, vConst.FANSIGHT_TAB,
+    vConst.SEC_CH_UA, vConst.SEC_CH_UA_MOBILE, vConst.SEC_CH_UA_PLATFORM
+];
 
 
 /**
@@ -61,15 +80,26 @@ function checkFileInMock(file) {
  * @param {*} rf 
  */
  function checkFilesWithDiffs(mf, rf) {
+    let mockPath, mock, realPath, real;
     for (let i=0; i<rf.length; i++) {
         for (let j=0; j<mf.length; j++) {
             if (rf[i] === mf[j]) {
-                let mockPath = path.join(mockDir, mf[j]);
-                let mock = JSON.parse(fs.readFileSync(mockPath));
+                mockPath = path.join(mockDir, mf[j]);
+                try{
+                    mock = JSON.parse(fs.readFileSync(mockPath));
+                } catch (error) {
+                    console.log(`\n${error.message} in ${mockPath}\n`);
+                    process.exit();
+                }
 
-                let realPath = path.join(realDir, rf[i]);
-                let real = JSON.parse(fs.readFileSync(realPath));              
-    
+                realPath = path.join(realDir, rf[i]);
+                try{
+                    real = JSON.parse(fs.readFileSync(realPath));
+                } catch (error) {
+                    console.log(`\n${error.message} in ${realPath}\n`);
+                    process.exit();
+                }
+                    
                 let deepDiffs = diff.diff(mock, real);
 
                 if (deepDiffs && !filesWithDiffs.includes(mf[j])) {
@@ -79,19 +109,6 @@ function checkFileInMock(file) {
         }
     }
 }
-
-
-// make action names from deep-diff user friendly
-let actionName = {
-    "E": "Property was modified",    
-    "N": "Property was newly added",
-    "D": "Property was deleted",
-    "A": "Changes within an array" 
-};
-
-
-// do not show differences for the following keys:
-let exceptKeys = ["user-agent", "cookie", "fansight-tab", "sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"];
 
 
 /**
@@ -270,8 +287,8 @@ function showDiffs(arr) {
             /* if "kind": "D" / "Property was deleted"
             or if "kind": "N" / "Property was newly added"
             there is no lhs/rhs or mock/real */
-            if (arr[j].action === "Property was deleted" 
-            || arr[j].action === "Property was newly added") {
+            if (arr[j].action === vConst.DELETED 
+            || arr[j].action === vConst.ADDED) {
                 head.push(
                     [
                         arr[j].action,
@@ -288,7 +305,7 @@ function showDiffs(arr) {
                 if (diffBody.length) {
                     for (let i=0; i<diffBody.length; i++) {
                         //  if action type is "A": "Changes within an array" create a table from items
-                        if (diffBody[i].action === "Changes within an array") { 
+                        if (diffBody[i].action === vConst.ARRAY_CHANGED) { 
                             /* need new index z, because if action is "Changes within an array"
                             diffs are shown in the next element of an diffBody array
                             and need to step over one element ++i */                        
@@ -327,7 +344,7 @@ function showDiffs(arr) {
  * @param {*} bp path to differences in body
  */
 function createJsonPathWhenPropertyWasModified(el, h, bp) {
-    if (el.action === "Property was modified") {
+    if (el.action === vConst.MODIFIED) {
         h.push([
             el.action,
             bp + "." + createJsonPath(el.path), 
@@ -407,9 +424,9 @@ function showApplyDiffs(conJsonArr, mock, real, mockFile) {
             /* when the path is "apis", that means that the request is new or deleted,
             the diff array length is 1, as there can not be any other changes */
             if (conJsonArr[i].diff[0].path == "apis") {
-                if (conJsonArr[i].diff[0].action == "Property was deleted") {
+                if (conJsonArr[i].diff[0].action == vConst.DELETED) {
                     term.brightWhite(`\nThe request is deleted.\n`);
-                } else if (conJsonArr[i].diff[0].action == "Property was newly added") {
+                } else if (conJsonArr[i].diff[0].action == vConst.ADDED) {
                     term.brightWhite(`\nThe request is new.\n`);
                 }
             }
@@ -638,27 +655,19 @@ function previewFilesWithDiffs(mf, rf) {
 }
 
 
-// args = process.argv
-argParse(args);
-
-
-try {
-    mockFiles = fs.readdirSync(mockDir);
-    realFiles = fs.readdirSync(realDir);
-} catch (err) {
-    console.log(`One of the provided paths is invalid, please check their existence.
-path: ${err.path}`);
-    process.exit();
+/**
+ * raead files from mock and real data folders
+ */
+function readFilesFromDirs() {
+    try {
+        mockFiles = fs.readdirSync(mockDir);
+        realFiles = fs.readdirSync(realDir);
+    } catch (err) {
+        console.log(`One of the provided paths is invalid, please check their existence.
+    path: ${err.path}`);
+        process.exit();
+    }
 }
 
 
-// check for each real data if missing in mock
-realFiles.forEach(checkFileInMock);
-
-
-// added files with diffs in filesWithDiffs array
-checkFilesWithDiffs(mockFiles, realFiles);
-
-
-previewMissingFiles();
-previewFilesWithDiffs(mockFiles, realFiles);
+export { argParse, readFilesFromDirs, checkFileInMock, checkFilesWithDiffs, previewMissingFiles, previewFilesWithDiffs };
