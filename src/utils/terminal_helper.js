@@ -102,4 +102,10 @@ let term = terminal.terminal;
 }
 
 
-export { createTable, printUpdatedFiles, createJsonPath, createReqResPath, createJsonPathWhenPropertyWasModified };
+export { 
+    createTable, 
+    printUpdatedFiles, 
+    createJsonPath, 
+    createReqResPath, 
+    createJsonPathWhenPropertyWasModified
+};

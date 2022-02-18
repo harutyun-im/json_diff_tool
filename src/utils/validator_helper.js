@@ -5,8 +5,11 @@ import path from 'path';
 import fs from 'fs';
 import * as vConst from '../constants/validator_constants.js'
 import {
-    createTable, printUpdatedFiles,
-    createJsonPath, createReqResPath, createJsonPathWhenPropertyWasModified
+    createTable, 
+    printUpdatedFiles,
+    createJsonPath, 
+    createReqResPath, 
+    createJsonPathWhenPropertyWasModified
 } from './terminal_helper.js'
 
 
@@ -577,4 +580,11 @@ function previewFilesWithDiffs(mf, rf) {
 }
 
 
-export { argParse, readFilesFromDirs, checkFileInMock, checkFilesWithDiffs, previewMissingFiles, previewFilesWithDiffs };
+export {
+    argParse, 
+    readFilesFromDirs, 
+    checkFileInMock, 
+    checkFilesWithDiffs, 
+    previewMissingFiles, 
+    previewFilesWithDiffs 
+};
